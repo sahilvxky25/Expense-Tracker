@@ -1,0 +1,3032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal / Family Expense Tracker</title>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (xlsx) for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    /* Theme Variables */
+    :root[data-theme="dark"] {
+      --bg: #0b1220;
+      --card: #0f172a;
+      --text: #e6edf3;
+      --muted: #94a3b8;
+      --brand: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ring: #38bdf8;
+      --border: #1f2937;
+      --accent: #8b5cf6;
+      --success: #10b981;
+      --hover: #1e293b;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --brand: #059669;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --ring: #0ea5e9;
+      --border: #e2e8f0;
+      --accent: #7c3aed;
+      --success: #059669;
+      --hover: #f1f5f9;
+    }
+
+    * {
+      box-sizing: border-box;
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    /* Header Improvements */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+      background: var(--card);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    .header-left h1 {
+      font-size: 28px;
+      margin: 0;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tag {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Data Status Indicator */
+    .data-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--hover);
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.error {
+      background: var(--danger);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .theme-icon {
+      padding: 8px;
+      border-radius: 16px;
+      transition: all 0.3s ease;
+      font-size: 16px;
+    }
+
+    .theme-icon.active {
+      background: var(--brand);
+      color: white;
+      transform: scale(1.1);
+    }
+
+    /* Enhanced Buttons */
+    button, select, input, textarea {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--brand), #16a34a);
+      border: none;
+      color: white;
+    }
+
+    button.primary:hover {
+      filter: brightness(1.1);
+    }
+
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+
+    button.ghost:hover {
+      background: var(--hover);
+    }
+
+    button.warn {
+      background: linear-gradient(135deg, var(--warn), #d97706);
+      border: none;
+      color: white;
+    }
+
+    button.danger {
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+      border: none;
+      color: white;
+    }
+
+    button.accent {
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border: none;
+      color: white;
+    }
+
+    /* Responsive Grid */
+    .main-grid {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 1.5fr 1fr;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 1200px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Enhanced Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2 {
+      margin: 0 0 20px 0;
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Improved Form */
+    form.expense-form {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(6, 1fr);
+    }
+
+    form.expense-form .full { grid-column: 1/-1; }
+    form.expense-form .span2 { grid-column: span 2; }
+    form.expense-form .span3 { grid-column: span 3; }
+
+    @media (max-width: 900px) {
+      form.expense-form {
+        grid-template-columns: 1fr 1fr;
+      }
+      form.expense-form .span3 { grid-column: span 2; }
+    }
+
+    @media (max-width: 600px) {
+      form.expense-form {
+        grid-template-columns: 1fr;
+      }
+      form.expense-form .span2, form.expense-form .span3 { grid-column: 1/-1; }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label.hint {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    /* Enhanced Table */
+    .table-wrapper {
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--card);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: var(--hover);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:hover {
+      background: var(--hover);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Enhanced Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .stat {
+      background: linear-gradient(135deg, var(--card), var(--hover));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--brand), var(--accent));
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Enhanced Filters */
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: var(--hover);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    /* Notifications */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 500;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      background: var(--success);
+    }
+
+    .notification.danger {
+      background: var(--danger);
+    }
+
+    .notification.warn {
+      background: var(--warn);
+    }
+
+    /* Action Buttons in Table */
+    .action-buttons {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .action-buttons button {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+    }
+
+    /* Category Pills */
+    .category-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--brand);
+      color: white;
+    }
+
+    /* Amount Display */
+    .amount-display {
+      font-weight: 600;
+      font-family: 'Monaco', 'Consolas', monospace;
+    }
+
+    .amount-positive {
+      color: var(--danger);
+    }
+
+    /* Loading State */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top: 2px solid var(--brand);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+
+    .quick-action {
+      padding: 8px 12px;
+      background: var(--hover);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .quick-action:hover {
+      background: var(--brand);
+      color: white;
+    }
+
+    /* Budget Progress */
+    .budget-progress {
+      margin: 20px 0;
+      padding: 16px;
+      background: var(--hover);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--warn));
+      transition: width 0.3s ease;
+    }
+
+    /* Backup & Restore Section */
+    .backup-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: var(--hover);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .backup-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .backup-info {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+
+    /* Responsive Improvements */
+    @media (max-width: 768px) {
+      .container {
+        padding: 0 12px;
+        margin: 16px auto;
+      }
+
+      header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+      }
+
+      .toolbar {
+        justify-content: center;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .filters {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Dark mode specific improvements */
+    :root[data-theme="dark"] .card {
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    :root[data-theme="light"] .card {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+    }
+
+    /* Animation for theme transition */
+    .theme-transition * {
+      transition: all 0.3s ease !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <h1>💰 Expense Tracker</h1>
+        <div class="tag">Personal & Family Budget • Smart Analytics • Auto-Save Enabled</div>
+      </div>
+      <div class="toolbar">
+        <div class="data-status" id="dataStatus">
+          <div class="status-indicator" id="statusIndicator"></div>
+          <span id="statusText">Data Synced</span>
+        </div>
+        <div class="theme-toggle" id="themeToggle">
+          <div class="theme-icon" id="lightIcon">☀️</div>
+          <div class="theme-icon" id="darkIcon">🌙</div>
+        </div>
+        <button id="setBudget" class="accent">📊 Set Budget</button>
+        <button id="backupData" class="ghost">💾 Backup</button>
+        <button id="restoreData" class="ghost">📥 Restore</button>
+        <button id="exportAll" class="ghost">📤 Export All</button>
+        <button id="exportFiltered" class="ghost">📋 Export Filtered</button>
+        <button id="resetData" class="danger">🗑️ Reset Data</button>
+      </div>
+    </header>
+
+    <!-- Budget Progress -->
+    <div class="budget-progress" id="budgetSection" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 600;">Monthly Budget Progress</span>
+        <span id="budgetText" class="amount-display">₹0 / ₹0</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+        <span id="remainingBudget">₹0 remaining</span> • 
+        <span id="budgetDays">0 days left</span> •
+        <span id="lastSaved">Auto-saved: Never</span>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- Left Panel -->
+      <div class="card">
+        <h2>💳 Add / Edit Expense</h2>
+        
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <div class="quick-action" onclick="quickExpense('Food', 500)">🍽️ Food ₹500</div>
+          <div class="quick-action" onclick="quickExpense('Transport', 200)">🚗 Transport ₹200</div>
+          <div class="quick-action" onclick="quickExpense('Groceries', 1000)">🛒 Groceries ₹1000</div>
+          <div class="quick-action" onclick="quickExpense('Bills & Utilities', 2000)">💡 Bills ₹2000</div>
+        </div>
+
+        <form id="expenseForm" class="expense-form" autocomplete="off">
+          <input type="hidden" id="editIndex" value="" />
+          
+          <div class="span2 form-group">
+            <label class="hint">📅 Date</label>
+            <input type="date" id="date" required />
+          </div>
+          
+          <div class="span2 form-group">
+            <label class="hint">🏷️ Category</label>
+            <select id="category" required>
+              <option value="">Select Category…</option>
+              <option value="Food">🍽️ Food & Dining</option>
+              <option value="Groceries">🛒 Groceries</option>
+              <option value="Transport">🚗 Transportation</option>
+              <option value="Bills & Utilities">💡 Bills & Utilities</option>
+              <option value="Education">📚 Education</option>
+              <option value="Health">🏥 Healthcare</option>
+              <option value="Entertainment">🎬 Entertainment</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Rent">🏠 Rent & Housing</option>
+              <option value="Investment">💎 Investment</option>
+              <option value="Other">📦 Other</option>
+            </select>
+          </div>
+          
+          <div class="span2 form-group">
+            <label class="hint">💰 Amount</label>
+            <input type="number" step="0.01" id="amount" placeholder="0.00" required />
+          </div>
+          
+          <div class="full form-group">
+            <label class="hint">📝 Description (Optional)</label>
+            <input type="text" id="note" placeholder="e.g., dinner with friends, monthly grocery shopping" />
+          </div>
+          
+          <div class="flex full">
+            <button type="submit" class="primary" id="submitBtn">
+              <span id="submitText">➕ Add Expense</span>
+              <div id="submitLoader" class="loading" style="display: none;"></div>
+            </button>
+            <button type="button" id="resetForm" class="ghost">🔄 Reset</button>
+            <div class="right">
+              <span class="pill" id="status" style="background: var(--success); color: white; display: none;"></span>
+            </div>
+          </div>
+        </form>
+
+        <!-- Enhanced Stats -->
+        <div class="stats">
+          <div class="stat">
+            <div class="label">This Month</div>
+            <div class="value" id="sumMonth">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="label">This Quarter</div>
+            <div class="value" id="sumQuarter">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="label">This Year</div>
+            <div class="value" id="sumYear">₹0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Daily Average</div>
+            <div class="value" id="avgDay">₹0</div>
+          </div>
+        </div>
+
+        <!-- Backup & Restore Section -->
+        <div class="backup-section">
+          <h3 style="margin: 0 0 16px 0; font-size: 16px;">🔒 Data Management</h3>
+          <div class="backup-controls">
+            <button id="createBackup" class="ghost">💾 Create Backup</button>
+            <input type="file" id="fileRestore" accept=".json" style="display: none;" />
+            <button id="loadBackup" class="ghost" onclick="document.getElementById('fileRestore').click()">📥 Load Backup</button>
+            <button id="autoBackup" class="accent">🔄 Auto-Backup: <span id="autoBackupStatus">OFF</span></button>
+          </div>
+          <div class="backup-info">
+            <div>📊 <strong id="totalExpenses">0</strong> expenses stored</div>
+            <div>💾 Last backup: <span id="lastBackup">Never</span></div>
+            <div>🔄 Auto-save: Every 30 seconds when changes are detected</div>
+          </div>
+        </div>
+
+        <h2>📋 Recent Transactions</h2>
+        
+        <!-- Enhanced Filters -->
+        <div class="filters">
+          <div class="form-group">
+            <label class="hint">📊 View Mode</label>
+            <select id="viewMode">
+              <option value="monthly">Monthly View</option>
+              <option value="quarterly">Quarterly View</option>
+              <option value="annual">Annual View</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="hint">📅 Month</label>
+            <select id="filterMonth">
+              <option value="">All Months</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="hint">📆 Year</label>
+            <select id="filterYear"></select>
+          </div>
+          
+          <div class="form-group">
+            <label class="hint">🏷️ Category</label>
+            <select id="filterCategory">
+              <option value="">All Categories</option>
+              <option value="Food">🍽️ Food & Dining</option>
+              <option value="Groceries">🛒 Groceries</option>
+              <option value="Transport">🚗 Transportation</option>
+              <option value="Bills & Utilities">💡 Bills & Utilities</option>
+              <option value="Education">📚 Education</option>
+              <option value="Health">🏥 Healthcare</option>
+              <option value="Entertainment">🎬 Entertainment</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Rent">🏠 Rent & Housing</option>
+              <option value="Investment">💎 Investment</option>
+              <option value="Other">📦 Other</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="hint">🔍 Search</label>
+            <input type="text" id="searchText" placeholder="Search descriptions..." />
+          </div>
+          
+          <div class="form-group">
+            <label class="hint">Actions</label>
+            <button id="clearFilters" class="ghost">🧹 Clear All</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table id="table">
+            <thead>
+              <tr>
+                <th>📅 Date</th>
+                <th>🏷️ Category</th>
+                <th>💰 Amount</th>
+                <th>📝 Description</th>
+                <th>⚡ Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Panel - Analytics -->
+      <div class="card">
+        <h2>📊 Financial Insights</h2>
+        <div style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+          Smart analytics that adapt to your filters and spending patterns.
+        </div>
+        
+        <div style="margin-bottom: 32px;">
+          <canvas id="barChart" height="200"></canvas>
+        </div>
+        
+        <div style="margin-bottom: 32px;">
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+          <canvas id="trendChart" height="180"></canvas>
+        </div>
+
+        <div style="font-size: 12px; color: var(--muted); text-align: center; padding: 16px; background: var(--hover); border-radius: 12px;">
+          💡 <strong>Tip:</strong> Switch between Monthly/Quarterly/Annual views to discover spending patterns across different time periods.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Container -->
+  <div id="notifications"></div>
+
+  <!-- Budget Modal (Simple) -->
+  <div id="budgetModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card); padding: 32px; border-radius: 20px; border: 1px solid var(--border); max-width: 400px; width: 90%;">
+      <h3 style="margin: 0 0 20px 0;">Set Monthly Budget</h3>
+      <div class="form-group">
+        <label class="hint">Monthly Budget Amount</label>
+        <input type="number" id="budgetAmount" placeholder="Enter amount..." step="100" />
+      </div>
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button id="saveBudget" class="primary">💾 Save Budget</button>
+        <button id="cancelBudget" class="ghost">❌ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // === Enhanced Storage & Caching System ===
+  class ExpenseStorage {
+    constructor() {
+      this.storeKey = 'expenses_v4';
+      this.budgetKey = 'monthlyBudget_v3';
+      this.themeKey = 'theme_preference_v3';
+      this.backupKey = 'expense_backups_v2';
+      this.settingsKey = 'app_settings_v2';
+      this.lastSaveKey = 'last_save_timestamp_v2';
+      this.filtersKey = 'saved_filters_v1';
+      this.userPrefsKey = 'user_preferences_v1';
+      
+      // Initialize storage validation
+      this.validateStorage();
+      this.initSettings();
+      this.startHealthCheck();
+    }
+
+    // Validate localStorage availability and integrity
+    validateStorage() {
+      try {
+        const testKey = '__storage_test__';
+        const testData = JSON.stringify({ test: true, timestamp: Date.now() });
+        
+        // Test write
+        localStorage.setItem(testKey, testData);
+        
+        // Test read
+        const retrieved = localStorage.getItem(testKey);
+        if (!retrieved || retrieved !== testData) {
+          throw new Error('Storage read/write mismatch');
+        }
+        
+        // Test delete
+        localStorage.removeItem(testKey);
+        
+        // Check available space (approximate)
+        this.checkStorageSpace();
+        
+        this.storageAvailable = true;
+        console.log('✅ Storage system initialized successfully');
+      } catch (e) {
+        this.storageAvailable = false;
+        console.error('❌ LocalStorage not available:', e);
+        showNotification('⚠️ Storage not available - data will not persist between sessions', 'warn', 8000);
+      }
+    }
+
+    // Check storage space and usage
+    checkStorageSpace() {
+      try {
+        let totalSize = 0;
+        for (let key in localStorage) {
+          if (localStorage.hasOwnProperty(key)) {
+            totalSize += localStorage[key].length + key.length;
+          }
+        }
+        
+        const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+        console.log(`📊 Storage usage: ${sizeInMB} MB`);
+        
+        // Warn if approaching 5MB limit (typical browser limit is 5-10MB)
+        if (totalSize > 4 * 1024 * 1024) {
+          showNotification('⚠️ Storage space is running low. Consider creating a backup and clearing old data.', 'warn', 6000);
+        }
+        
+        return { totalSize, sizeInMB };
+      } catch (e) {
+        console.warn('Could not check storage space:', e);
+        return null;
+      }
+    }
+
+    // Start periodic health check
+    startHealthCheck() {
+      // Check storage health every 5 minutes
+      setInterval(() => {
+        this.performHealthCheck();
+      }, 5 * 60 * 1000);
+      
+      // Immediate health check
+      setTimeout(() => this.performHealthCheck(), 1000);
+    }
+
+    // Perform storage health check
+    performHealthCheck() {
+      try {
+        // Test basic functionality
+        const testKey = '__health_check__';
+        const testData = { timestamp: Date.now(), random: Math.random() };
+        
+        localStorage.setItem(testKey, JSON.stringify(testData));
+        const retrieved = JSON.parse(localStorage.getItem(testKey));
+        
+        if (retrieved.timestamp !== testData.timestamp) {
+          throw new Error('Health check failed');
+        }
+        
+        localStorage.removeItem(testKey);
+        
+        // Update status
+        this.updateDataStatus('Data system healthy', false);
+        
+        // Check for data corruption
+        this.validateDataIntegrity();
+        
+      } catch (e) {
+        console.error('Storage health check failed:', e);
+        this.updateDataStatus('Storage error detected', true);
+        showNotification('⚠️ Data storage issue detected. Please backup your data.', 'warn', 8000);
+      }
+    }
+
+    // Validate data integrity
+    validateDataIntegrity() {
+      try {
+        // Check expenses data
+        const expensesData = this.getItem(this.storeKey);
+        if (expensesData) {
+          const expenses = JSON.parse(expensesData);
+          if (!Array.isArray(expenses)) {
+            throw new Error('Expenses data corrupted');
+          }
+          
+          // Validate each expense
+          expenses.forEach((expense, index) => {
+            if (!expense || typeof expense !== 'object') {
+              throw new Error(`Expense ${index} is invalid`);
+            }
+            if (!expense.date || !expense.category || expense.amount === undefined) {
+              throw new Error(`Expense ${index} missing required fields`);
+            }
+          });
+        }
+        
+        // Check budget data
+        const budgetData = this.getItem(this.budgetKey);
+        if (budgetData && isNaN(parseFloat(budgetData))) {
+          throw new Error('Budget data corrupted');
+        }
+        
+        console.log('✅ Data integrity check passed');
+        return true;
+      } catch (e) {
+        console.error('❌ Data integrity check failed:', e);
+        showNotification('⚠️ Data corruption detected. Please restore from backup if available.', 'danger', 10000);
+        return false;
+      }
+    }
+
+    // Initialize app settings with defaults
+    initSettings() {
+      const defaultSettings = {
+        autoBackup: false,
+        backupInterval: 300000, // 5 minutes
+        autoSaveInterval: 30000, // 30 seconds
+        maxBackups: 15,
+        compressionEnabled: true,
+        encryptionEnabled: false
+      };
+      
+      const stored = this.getItem(this.settingsKey);
+      this.settings = stored ? { ...defaultSettings, ...JSON.parse(stored) } : defaultSettings;
+      this.saveSettings();
+      
+      // Initialize user preferences
+      this.initUserPreferences();
+    }
+
+    // Initialize user preferences
+    initUserPreferences() {
+      const defaultPrefs = {
+        currency: '₹',
+        dateFormat: 'dd/mm/yyyy',
+        theme: 'dark',
+        notifications: true,
+        soundEnabled: false,
+        language: 'en'
+      };
+      
+      const stored = this.getItem(this.userPrefsKey);
+      this.userPrefs = stored ? { ...defaultPrefs, ...JSON.parse(stored) } : defaultPrefs;
+      this.saveUserPreferences();
+    }
+
+    // Enhanced getItem with error handling and caching
+    getItem(key, useCache = true) {
+      if (!this.storageAvailable) return null;
+      
+      try {
+        // Check cache first (if implemented)
+        if (useCache && this.cache && this.cache[key]) {
+          const cached = this.cache[key];
+          if (Date.now() - cached.timestamp < 60000) { // 1 minute cache
+            return cached.data;
+          }
+        }
+        
+        const item = localStorage.getItem(key);
+        
+        // Update cache
+        if (useCache && item !== null) {
+          if (!this.cache) this.cache = {};
+          this.cache[key] = {
+            data: item,
+            timestamp: Date.now()
+          };
+        }
+        
+        return item;
+      } catch (e) {
+        console.error(`Error reading ${key}:`, e);
+        this.updateDataStatus(`Error reading ${key}`, true);
+        
+        // Try to recover from cache if available
+        if (this.cache && this.cache[key]) {
+          console.warn(`Recovering ${key} from cache`);
+          return this.cache[key].data;
+        }
+        
+        return null;
+      }
+    }
+
+    // Enhanced setItem with error handling, compression, and versioning
+    setItem(key, value, compress = false) {
+      if (!this.storageAvailable) {
+        console.warn('Storage not available, data will be lost on refresh');
+        return false;
+      }
+      
+      try {
+        let finalValue = value;
+        
+        // Optional compression for large data
+        if (compress && this.settings.compressionEnabled && value.length > 1000) {
+          try {
+            // Simple compression simulation (in real app, use a compression library)
+            finalValue = this.compressData(value);
+          } catch (compressError) {
+            console.warn('Compression failed, storing uncompressed:', compressError);
+            finalValue = value;
+          }
+        }
+        
+        // Add metadata
+        const dataWithMeta = {
+          data: finalValue,
+          timestamp: Date.now(),
+          version: '4.0',
+          compressed: compress && finalValue !== value,
+          checksum: this.generateChecksum(finalValue)
+        };
+        
+        localStorage.setItem(key, JSON.stringify(dataWithMeta));
+        localStorage.setItem(this.lastSaveKey, Date.now().toString());
+        
+        // Update cache
+        if (!this.cache) this.cache = {};
+        this.cache[key] = {
+          data: JSON.stringify(dataWithMeta),
+          timestamp: Date.now()
+        };
+        
+        this.updateDataStatus('Data saved successfully');
+        return true;
+      } catch (e) {
+        console.error(`Error saving ${key}:`, e);
+        this.updateDataStatus(`Error saving ${key}`, true);
+        
+        // Handle quota exceeded
+        if (e.name === 'QuotaExceededError') {
+          showNotification('💾 Storage quota exceeded! Cleaning up old data...', 'warn', 6000);
+          if (this.handleQuotaExceeded()) {
+            // Retry after cleanup
+            return this.setItem(key, value, compress);
+          }
+        }
+        return false;
+      }
+    }
+
+    // Simple data compression
+    compressData(data) {
+      // This is a placeholder for actual compression
+      // In a real app, you'd use libraries like pako or lz-string
+      try {
+        // Remove extra whitespace from JSON
+        if (typeof data === 'string' && data.startsWith('[') || data.startsWith('{')) {
+          return JSON.stringify(JSON.parse(data));
+        }
+        return data;
+      } catch (e) {
+        return data;
+      }
+    }
+
+    // Generate simple checksum for data integrity
+    generateChecksum(data) {
+      let hash = 0;
+      if (data.length === 0) return hash;
+      for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return hash;
+    }
+
+    // Enhanced quota handling
+    handleQuotaExceeded() {
+      try {
+        // Step 1: Clean up old backups
+        const backups = this.getBackups();
+        if (backups.length > 5) {
+          const toKeep = backups.slice(-3);
+          localStorage.setItem(this.backupKey, JSON.stringify(toKeep));
+          console.log('🧹 Cleaned up old backups');
+        }
+        
+        // Step 2: Clear cache
+        if (this.cache) {
+          this.cache = {};
+          console.log('🧹 Cleared memory cache');
+        }
+        
+        // Step 3: Remove temporary keys
+        const tempKeys = [];
+        for (let key in localStorage) {
+          if (key.startsWith('__temp__') || key.startsWith('__test__')) {
+            tempKeys.push(key);
+          }
+        }
+        tempKeys.forEach(key => localStorage.removeItem(key));
+        
+        if (tempKeys.length > 0) {
+          console.log(`🧹 Cleaned up ${tempKeys.length} temporary keys`);
+        }
+        
+        // Step 4: Check if we freed enough space
+        const spaceInfo = this.checkStorageSpace();
+        if (spaceInfo && spaceInfo.totalSize < 4 * 1024 * 1024) {
+          showNotification('✅ Storage cleaned up successfully', 'success');
+          return true;
+        }
+        
+        // Step 5: Last resort - ask user to backup and clear data
+        showNotification('⚠️ Storage still full. Please backup and reset data.', 'warn', 10000);
+        return false;
+        
+      } catch (e) {
+        console.error('Error handling quota exceeded:', e);
+        return false;
+      }
+    }
+
+    // Enhanced data retrieval with metadata handling
+    getItemWithMeta(key) {
+      const rawData = this.getItem(key);
+      if (!rawData) return null;
+      
+      try {
+        const parsed = JSON.parse(rawData);
+        
+        // Handle both old and new format
+        if (parsed.data !== undefined && parsed.timestamp !== undefined) {
+          // New format with metadata
+          const checksum = this.generateChecksum(parsed.data);
+          if (parsed.checksum && parsed.checksum !== checksum) {
+            console.warn(`Checksum mismatch for ${key}, data may be corrupted`);
+            showNotification('⚠️ Data integrity warning detected', 'warn', 5000);
+          }
+          
+          return {
+            data: parsed.data,
+            meta: {
+              timestamp: parsed.timestamp,
+              version: parsed.version,
+              compressed: parsed.compressed,
+              checksum: parsed.checksum
+            }
+          };
+        } else {
+          // Old format, just return data
+          return {
+            data: rawData,
+            meta: {
+              timestamp: Date.now(),
+              version: 'legacy',
+              compressed: false,
+              checksum: null
+            }
+          };
+        }
+      } catch (e) {
+        console.error(`Error parsing metadata for ${key}:`, e);
+        return {
+          data: rawData,
+          meta: {
+            timestamp: Date.now(),
+            version: 'unknown',
+            compressed: false,
+            checksum: null
+          }
+        };
+      }
+    }
+
+    // Save app settings
+    saveSettings() {
+      this.setItem(this.settingsKey, JSON.stringify(this.settings));
+    }
+
+    // Save user preferences
+    saveUserPreferences() {
+      this.setItem(this.userPrefsKey, JSON.stringify(this.userPrefs));
+    }
+
+    // Save current filter state
+    saveFilters(filters) {
+      this.setItem(this.filtersKey, JSON.stringify(filters));
+    }
+
+    // Load saved filters
+    loadFilters() {
+      const stored = this.getItem(this.filtersKey);
+      return stored ? JSON.parse(stored) : null;
+    }
+
+    // Get last save timestamp
+    getLastSaveTime() {
+      const timestamp = this.getItem(this.lastSaveKey);
+      return timestamp ? new Date(parseInt(timestamp)) : null;
+    }
+
+    // Update data status indicator
+    updateDataStatus(message, isError = false) {
+      const statusEl = document.getElementById('statusText');
+      const indicatorEl = document.getElementById('statusIndicator');
+      
+      if (statusEl && indicatorEl) {
+        statusEl.textContent = message;
+        indicatorEl.className = `status-indicator ${isError ? 'error' : ''}`;
+        
+        // Auto-clear status after 5 seconds
+        setTimeout(() => {
+          if (!isError && statusEl.textContent === message) {
+            statusEl.textContent = 'Data Synced';
+            indicatorEl.className = 'status-indicator';
+          }
+        }, 5000);
+      }
+    }
+
+    // Enhanced backup creation with compression and metadata
+    createBackup(expenses, budget, settings = null) {
+      const backup = {
+        id: this.generateId(),
+        timestamp: Date.now(),
+        date: new Date().toISOString(),
+        version: '4.0',
+        data: {
+          expenses: expenses || [],
+          budget: budget || 0,
+          settings: settings || this.settings,
+          userPrefs: this.userPrefs,
+          appVersion: '4.0'
+        },
+        stats: {
+          totalExpenses: expenses ? expenses.length : 0,
+          totalAmount: expenses ? expenses.reduce((sum, e) => sum + (e.amount || 0), 0) : 0,
+          dateRange: this.getDateRange(expenses),
+          categories: this.getCategoryStats(expenses)
+        },
+        checksum: null
+      };
+
+      // Generate checksum for backup integrity
+      backup.checksum = this.generateChecksum(JSON.stringify(backup.data));
+
+      const backups = this.getBackups();
+      backups.push(backup);
+      
+      // Keep only recent backups
+      const maxBackups = this.settings.maxBackups;
+      if (backups.length > maxBackups) {
+        backups.splice(0, backups.length - maxBackups);
+      }
+
+      // Save with compression
+      this.setItem(this.backupKey, JSON.stringify(backups), true);
+      this.updateBackupInfo();
+      
+      console.log(`💾 Backup created: ${backup.id}`);
+      return backup;
+    }
+
+    // Get date range from expenses
+    getDateRange(expenses) {
+      if (!expenses || expenses.length === 0) return null;
+      
+      const dates = expenses.map(e => new Date(e.date)).sort((a, b) => a - b);
+      return {
+        earliest: dates[0].toISOString().slice(0, 10),
+        latest: dates[dates.length - 1].toISOString().slice(0, 10)
+      };
+    }
+
+    // Get category statistics
+    getCategoryStats(expenses) {
+      if (!expenses || expenses.length === 0) return {};
+      
+      const stats = {};
+      expenses.forEach(e => {
+        const cat = e.category || 'Other';
+        stats[cat] = (stats[cat] || 0) + 1;
+      });
+      return stats;
+    }
+
+    // Get all backups with enhanced metadata
+    getBackups() {
+      const stored = this.getItemWithMeta(this.backupKey);
+      if (!stored) return [];
+      
+      try {
+        const backups = JSON.parse(stored.data);
+        return Array.isArray(backups) ? backups : [];
+      } catch (e) {
+        console.error('Error parsing backups:', e);
+        return [];
+      }
+    }
+
+    // Get latest backup info
+    getLatestBackupInfo() {
+      const backups = this.getBackups();
+      return backups.length > 0 ? backups[backups.length - 1] : null;
+    }
+
+    // Update backup info display
+    updateBackupInfo() {
+      const totalExpensesEl = document.getElementById('totalExpenses');
+      const lastBackupEl = document.getElementById('lastBackup');
+      
+      if (totalExpensesEl && window.expenses) {
+        totalExpensesEl.textContent = window.expenses.length.toString();
+      }
+
+      const latest = this.getLatestBackupInfo();
+      if (lastBackupEl && latest) {
+        const date = new Date(latest.timestamp);
+        lastBackupEl.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      }
+    }
+
+    // Generate unique ID
+    generateId() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    // Enhanced export backup as file
+    exportBackup(data) {
+      const backup = {
+        exportDate: new Date().toISOString(),
+        appVersion: '4.0',
+        exportVersion: '2.0',
+        data: data,
+        metadata: {
+          userAgent: navigator.userAgent,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          locale: navigator.language
+        }
+      };
+
+      // Add integrity check
+      backup.checksum = this.generateChecksum(JSON.stringify(backup.data));
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: 'application/json'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `expense-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log('📤 Backup exported successfully');
+    }
+
+    // Enhanced import backup from file
+    importBackup(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const backup = JSON.parse(e.target.result);
+            
+            // Validate backup structure
+            if (!backup.data) {
+              throw new Error('Invalid backup format: missing data');
+            }
+            
+            if (!backup.data.expenses || !Array.isArray(backup.data.expenses)) {
+              throw new Error('Invalid backup format: expenses must be an array');
+            }
+
+            // Validate checksum if present
+            if (backup.checksum) {
+              const calculatedChecksum = this.generateChecksum(JSON.stringify(backup.data));
+              if (calculatedChecksum !== backup.checksum) {
+                console.warn('Backup checksum mismatch - data may be corrupted');
+                showNotification('⚠️ Backup integrity warning - proceeding anyway', 'warn', 5000);
+              }
+            }
+
+            // Validate expense data
+            backup.data.expenses.forEach((expense, index) => {
+              if (!expense || typeof expense !== 'object') {
+                throw new Error(`Invalid expense at index ${index}`);
+              }
+              if (!expense.date || !expense.category || expense.amount === undefined) {
+                throw new Error(`Expense ${index} missing required fields`);
+              }
+            });
+
+            console.log('✅ Backup validation passed');
+            resolve(backup.data);
+          } catch (error) {
+            console.error('❌ Backup import failed:', error);
+            reject(error);
+          }
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+      });
+    }
+
+    // Clear all data (for reset functionality)
+    clearAllData() {
+      if (!this.storageAvailable) return;
+      
+      try {
+        // Clear main data
+        localStorage.removeItem(this.storeKey);
+        localStorage.removeItem(this.budgetKey);
+        localStorage.removeItem(this.filtersKey);
+        localStorage.removeItem(this.lastSaveKey);
+        
+        // Keep user preferences and settings unless specifically requested
+        // localStorage.removeItem(this.settingsKey);
+        // localStorage.removeItem(this.userPrefsKey);
+        
+        // Clear cache
+        if (this.cache) {
+          this.cache = {};
+        }
+        
+        console.log('🧹 All data cleared');
+        this.updateDataStatus('All data cleared');
+        
+      } catch (e) {
+        console.error('Error clearing data:', e);
+        this.updateDataStatus('Error clearing data', true);
+      }
+    }
+
+    // Get storage statistics
+    getStorageStats() {
+      if (!this.storageAvailable) return null;
+      
+      const stats = {
+        expenses: 0,
+        budget: 0,
+        backups: 0,
+        settings: 0,
+        total: 0,
+        available: true
+      };
+      
+      try {
+        for (let key in localStorage) {
+          if (localStorage.hasOwnProperty(key)) {
+            const size = localStorage[key].length + key.length;
+            stats.total += size;
+            
+            if (key === this.storeKey) stats.expenses = size;
+            else if (key === this.budgetKey) stats.budget = size;
+            else if (key === this.backupKey) stats.backups = size;
+            else if (key === this.settingsKey || key === this.userPrefsKey) stats.settings += size;
+          }
+        }
+        
+        // Convert to readable format
+        Object.keys(stats).forEach(key => {
+          if (key !== 'available' && typeof stats[key] === 'number') {
+            stats[key] = {
+              bytes: stats[key],
+              kb: (stats[key] / 1024).toFixed(2),
+              mb: (stats[key] / (1024 * 1024)).toFixed(4)
+            };
+          }
+        });
+        
+        return stats;
+      } catch (e) {
+        console.error('Error getting storage stats:', e);
+        return null;
+      }
+    }
+  }
+
+  // Initialize storage system
+  const storage = new ExpenseStorage();
+
+  // === Enhanced Utilities ===
+  const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN', {maximumFractionDigits: 2})}`;
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const getQuarter = (m) => Math.floor(m/3)+1;
+
+  // Enhanced Auto-save system
+  class AutoSave {
+    constructor() {
+      this.hasChanges = false;
+      this.lastAutoSave = null;
+      this.interval = null;
+      this.saveQueue = [];
+      this.isProcessing = false;
+      this.init();
+    }
+
+    init() {
+      // Start auto-save interval
+      this.startAutoSave();
+      
+      // Track changes
+      this.trackChanges();
+      
+      // Update last save display
+      this.updateLastSaveDisplay();
+      setInterval(() => this.updateLastSaveDisplay(), 30000); // Update every 30 seconds
+      
+      // Handle page visibility changes
+      this.handlePageVisibility();
+      
+      // Handle page unload
+      this.handlePageUnload();
+    }
+
+    startAutoSave() {
+      if (this.interval) clearInterval(this.interval);
+      
+      this.interval = setInterval(() => {
+        if (this.hasChanges && !this.isProcessing) {
+          this.performAutoSave();
+        }
+      }, storage.settings.autoSaveInterval);
+      
+      console.log(`⚡ Auto-save started (interval: ${storage.settings.autoSaveInterval}ms)`);
+    }
+
+    performAutoSave() {
+      if (this.isProcessing) return;
+      
+      this.isProcessing = true;
+      
+      try {
+        // Save current data
+        if (window.expenses && window.monthlyBudget !== undefined) {
+          saveExpenses(window.expenses);
+          saveBudget(window.monthlyBudget);
+          
+          // Create backup if enabled
+          if (storage.settings.autoBackup) {
+            storage.createBackup(window.expenses, window.monthlyBudget);
+          }
+          
+          // Save current filter state
+          const currentFilters = getFilters();
+          storage.saveFilters(currentFilters);
+          
+          this.hasChanges = false;
+          this.lastAutoSave = new Date();
+          this.updateLastSaveDisplay();
+          
+          // Show subtle indication
+          storage.updateDataStatus('Auto-saved');
+          
+          console.log('💾 Auto-save completed');
+        }
+      } catch (e) {
+        console.error('Auto-save failed:', e);
+        storage.updateDataStatus('Auto-save failed', true);
+      } finally {
+        this.isProcessing = false;
+      }
+    }
+
+    markChanged() {
+      this.hasChanges = true;
+      
+      // Debounce rapid changes
+      clearTimeout(this.changeTimeout);
+      this.changeTimeout = setTimeout(() => {
+        if (this.hasChanges) {
+          console.log('📝 Changes detected, will auto-save soon');
+        }
+      }, 1000);
+    }
+
+    trackChanges() {
+      // Track form changes
+      const form = document.getElementById('expenseForm');
+      if (form) {
+        form.addEventListener('input', () => this.markChanged());
+        form.addEventListener('change', () => this.markChanged());
+      }
+      
+      // Track filter changes
+      const filterElements = ['viewMode', 'filterMonth', 'filterYear', 'filterCategory', 'searchText'];
+      filterElements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.addEventListener('change', () => this.markChanged());
+          element.addEventListener('input', () => this.markChanged());
+        }
+      });
+    }
+
+    handlePageVisibility() {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && this.hasChanges) {
+          // Page is being hidden, save immediately
+          this.performAutoSave();
+        }
+      });
+    }
+
+    handlePageUnload() {
+      window.addEventListener('beforeunload', (e) => {
+        if (this.hasChanges) {
+          // Try to save before page unloads
+          this.performAutoSave();
+          
+          // Show warning to user
+          e.preventDefault();
+          e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+          return e.returnValue;
+        }
+      });
+    }
+
+    updateLastSaveDisplay() {
+      const lastSavedEl = document.getElementById('lastSaved');
+      const lastSave = storage.getLastSaveTime();
+      
+      if (lastSavedEl && lastSave) {
+        const now = new Date();
+        const diff = now - lastSave;
+        const seconds = Math.floor(diff / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        let text;
+        if (seconds < 10) {
+          text = 'Just now';
+        } else if (seconds < 60) {
+          text = `${seconds}s ago`;
+        } else if (minutes < 60) {
+          text = `${minutes}m ago`;
+        } else if (hours < 24) {
+          text = `${hours}h ago`;
+        } else {
+          text = lastSave.toLocaleDateString();
+        }
+        
+        lastSavedEl.textContent = `Auto-saved: ${text}`;
+      }
+    }
+
+    // Force save
+    forceSave() {
+      this.hasChanges = true;
+      this.performAutoSave();
+    }
+
+    // Stop auto-save
+    stop() {
+      if (this.interval) {
+        clearInterval(this.interval);
+        this.interval = null;
+        console.log('🛑 Auto-save stopped');
+      }
+    }
+  }
+
+  // Initialize auto-save
+  const autoSave = new AutoSave();
+
+  // Enhanced Theme Management
+  function initTheme() {
+    // Try to load from storage first, then check user preference, fallback to dark
+    const savedTheme = storage.getItem(storage.themeKey) || 
+                      storage.userPrefs.theme || 
+                      'dark';
+    
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcons(savedTheme);
+    
+    console.log(`🎨 Theme initialized: ${savedTheme}`);
+  }
+
+  function toggleTheme() {
+    document.body.classList.add('theme-transition');
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    storage.setItem(storage.themeKey, newTheme);
+    
+    // Update user preferences
+    storage.userPrefs.theme = newTheme;
+    storage.saveUserPreferences();
+    
+    updateThemeIcons(newTheme);
+    
+    setTimeout(() => document.body.classList.remove('theme-transition'), 300);
+    showNotification(`🎨 Switched to ${newTheme} theme`, 'success');
+    autoSave.markChanged();
+  }
+
+  function updateThemeIcons(theme) {
+    const lightIcon = document.getElementById('lightIcon');
+    const darkIcon = document.getElementById('darkIcon');
+    
+    if (lightIcon && darkIcon) {
+      if (theme === 'dark') {
+        darkIcon.classList.add('active');
+        lightIcon.classList.remove('active');
+      } else {
+        lightIcon.classList.add('active');
+        darkIcon.classList.remove('active');
+      }
+    }
+  }
+
+  // Enhanced Notifications with queue and persistence
+  const NotificationSystem = {
+    queue: [],
+    container: null,
+    maxNotifications: 3,
+    
+    init() {
+      this.container = document.getElementById('notifications');
+      if (!this.container) {
+        this.container = document.createElement('div');
+        this.container.id = 'notifications';
+        document.body.appendChild(this.container);
+      }
+    },
+    
+    show(message, type = 'success', duration = 3000, persist = false) {
+      if (!this.container) this.init();
+      
+      // Remove old notifications if too many
+      const existing = this.container.querySelectorAll('.notification');
+      if (existing.length >= this.maxNotifications) {
+        existing[0].remove();
+      }
+      
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>${message}</span>
+          ${persist ? '<button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer; padding: 0; margin-left: auto;">✕</button>' : ''}
+        </div>
+      `;
+      
+      this.container.appendChild(notification);
+      
+      // Trigger animation
+      setTimeout(() => notification.classList.add('show'), 100);
+      
+      // Auto-remove if not persistent
+      if (!persist) {
+        setTimeout(() => {
+          if (notification.parentElement) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+              if (notification.parentElement) {
+                notification.remove();
+              }
+            }, 300);
+          }
+        }, duration);
+      }
+      
+      return notification;
+    }
+  };
+
+  // Initialize notification system
+  NotificationSystem.init();
+
+  // Convenience function
+  function showNotification(message, type = 'success', duration = 3000, persist = false) {
+    return NotificationSystem.show(message, type, duration, persist);
+  }
+
+  // Enhanced Data Management with versioning and migration
+  function loadExpenses() {
+    try {
+      const dataWithMeta = storage.getItemWithMeta(storage.storeKey);
+      if (!dataWithMeta) return [];
+      
+      let data;
+      if (dataWithMeta.data.startsWith('[') || dataWithMeta.data.startsWith('{')) {
+        data = JSON.parse(dataWithMeta.data);
+      } else {
+        // Handle old format
+        data = JSON.parse(storage.getItem(storage.storeKey) || '[]');
+      }
+      
+      // Migrate data if necessary
+      data = migrateExpensesData(data, dataWithMeta.meta.version);
+      
+      // Validate and clean data
+      const validExpenses = data.filter(e => e && e.date && e.category && e.amount !== undefined)
+                               .map(e => ({
+                                 id: e.id || storage.generateId(),
+                                 date: e.date,
+                                 category: e.category,
+                                 amount: +e.amount,
+                                 note: e.note || ''
+                               }));
+      
+      console.log(`📊 Loaded ${validExpenses.length} expenses`);
+      return validExpenses;
+    } catch (e) {
+      console.error('Error loading expenses:', e);
+      showNotification('⚠️ Error loading expenses. Starting fresh.', 'warn', 6000);
+      return [];
+    }
+  }
+
+  // Data migration for different versions
+  function migrateExpensesData(data, version) {
+    if (!Array.isArray(data)) return [];
+    
+    // Version-specific migrations
+    if (version === 'legacy' || !version) {
+      // Migrate from old format
+      console.log('🔄 Migrating data from legacy format');
+      return data.map(e => ({
+        ...e,
+        id: e.id || storage.generateId(),
+        note: e.note || e.description || '' // Handle old description field
+      }));
+    }
+    
+    if (version === '3.0') {
+      // Migrate from v3 to v4
+      console.log('🔄 Migrating data from v3.0 to v4.0');
+      return data.map(e => ({
+        ...e,
+        id: e.id || storage.generateId()
+      }));
+    }
+    
+    // No migration needed for current version
+    return data;
+  }
+
+  function saveExpenses(arr) {
+    try {
+      // Validate data before saving
+      const validExpenses = arr.filter(e => e && e.date && e.category && e.amount !== undefined);
+      
+      if (validExpenses.length !== arr.length) {
+        console.warn(`Filtered out ${arr.length - validExpenses.length} invalid expenses`);
+      }
+      
+      const success = storage.setItem(storage.storeKey, JSON.stringify(validExpenses), true);
+      if (success) {
+        autoSave.markChanged();
+        storage.updateBackupInfo();
+        console.log(`💾 Saved ${validExpenses.length} expenses`);
+      }
+      return success;
+    } catch (e) {
+      console.error('Error saving expenses:', e);
+      showNotification('❌ Error saving expenses', 'danger', 5000);
+      return false;
+    }
+  }
+
+  function loadBudget() {
+    try {
+      const dataWithMeta = storage.getItemWithMeta(storage.budgetKey);
+      if (!dataWithMeta) return 0;
+      
+      const budget = parseFloat(dataWithMeta.data) || 0;
+      console.log(`💰 Loaded budget: ${budget}`);
+      return budget;
+    } catch (e) {
+      console.error('Error loading budget:', e);
+      return 0;
+    }
+  }
+
+  function saveBudget(amount) {
+    try {
+      const success = storage.setItem(storage.budgetKey, amount.toString());
+      if (success) {
+        autoSave.markChanged();
+        console.log(`💰 Saved budget: ${amount}`);
+      }
+      return success;
+    } catch (e) {
+      console.error('Error saving budget:', e);
+      showNotification('❌ Error saving budget', 'danger', 5000);
+      return false;
+    }
+  }
+
+  // === Enhanced State with Recovery ===
+  let expenses = [];
+  let monthlyBudget = 0;
+
+  // Initialize data with recovery
+  function initializeData() {
+    try {
+      expenses = loadExpenses();
+      monthlyBudget = loadBudget();
+      
+      // Load saved filters if available
+      const savedFilters = storage.loadFilters();
+      if (savedFilters) {
+        applyFiltersToUI(savedFilters);
+      }
+      
+      console.log(`✅ Data initialized: ${expenses.length} expenses, budget: ${monthlyBudget}`);
+      return true;
+    } catch (e) {
+      console.error('Failed to initialize data:', e);
+      showNotification('⚠️ Data initialization failed. Using defaults.', 'warn', 6000);
+      expenses = [];
+      monthlyBudget = 0;
+      return false;
+    }
+  }
+
+  // Apply filters to UI elements
+  function applyFiltersToUI(filters) {
+    try {
+      if (filters.mode) document.getElementById('viewMode').value = filters.mode;
+      if (filters.year) document.getElementById('filterYear').value = filters.year;
+      if (filters.month !== null) document.getElementById('filterMonth').value = filters.month;
+      if (filters.category) document.getElementById('filterCategory').value = filters.category;
+      if (filters.q) document.getElementById('searchText').value = filters.q;
+    } catch (e) {
+      console.warn('Error applying saved filters:', e);
+    }
+  }
+
+  // === DOM References ===
+  const form = document.getElementById('expenseForm');
+  const editIndex = document.getElementById('editIndex');
+  const dateEl = document.getElementById('date');
+  const categoryEl = document.getElementById('category');
+  const amountEl = document.getElementById('amount');
+  const noteEl = document.getElementById('note');
+  const statusEl = document.getElementById('status');
+  const tableBody = document.querySelector('#table tbody');
+  
+  const themeToggle = document.getElementById('themeToggle');
+  const setBudgetBtn = document.getElementById('setBudget');
+  const budgetModal = document.getElementById('budgetModal');
+  const saveBudgetBtn = document.getElementById('saveBudget');
+  const cancelBudgetBtn = document.getElementById('cancelBudget');
+  const budgetAmountEl = document.getElementById('budgetAmount');
+
+  // Enhanced backup controls
+  const createBackupBtn = document.getElementById('createBackup');
+  const loadBackupBtn = document.getElementById('loadBackup');
+  const fileRestoreEl = document.getElementById('fileRestore');
+  const autoBackupBtn = document.getElementById('autoBackup');
+  const backupDataBtn = document.getElementById('backupData');
+  const restoreDataBtn = document.getElementById('restoreData');
+
+  // Filter elements
+  const viewModeEl = document.getElementById('viewMode');
+  const filterMonthEl = document.getElementById('filterMonth');
+  const filterYearEl = document.getElementById('filterYear');
+  const filterCategoryEl = document.getElementById('filterCategory');
+  const searchTextEl = document.getElementById('searchText');
+
+  // Button elements
+  const exportAllBtn = document.getElementById('exportAll');
+  const exportFilteredBtn = document.getElementById('exportFiltered');
+  const resetDataBtn = document.getElementById('resetData');
+  const clearFiltersBtn = document.getElementById('clearFilters');
+  const submitBtn = document.getElementById('submitBtn');
+  const submitText = document.getElementById('submitText');
+  const submitLoader = document.getElementById('submitLoader');
+  const resetFormBtn = document.getElementById('resetForm');
+
+  // Stat elements
+  const sumMonthEl = document.getElementById('sumMonth');
+  const sumQuarterEl = document.getElementById('sumQuarter');
+  const sumYearEl = document.getElementById('sumYear');
+  const avgDayEl = document.getElementById('avgDay');
+
+  // Budget elements
+  const budgetSection = document.getElementById('budgetSection');
+  const budgetTextEl = document.getElementById('budgetText');
+  const progressFillEl = document.getElementById('progressFill');
+  const remainingBudgetEl = document.getElementById('remainingBudget');
+  const budgetDaysEl = document.getElementById('budgetDays');
+
+  // === Enhanced Initialization ===
+  if (dateEl) {
+    dateEl.max = todayISO();
+    dateEl.value = todayISO();
+  }
+  
+  function initMonthOptions() {
+    if (!filterMonthEl) return;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    filterMonthEl.innerHTML = '<option value="">All Months</option>' + 
+      months.map((m,i) => `<option value="${i}">${m}</option>`).join('');
+  }
+  
+  function initYearOptions() {
+    if (!filterYearEl) return;
+    const years = [...new Set(expenses.map(e => new Date(e.date).getFullYear()))].sort((a,b) => b-a);
+    const current = new Date().getFullYear();
+    if (!years.includes(current)) years.unshift(current);
+    filterYearEl.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    filterYearEl.value = String(current);
+  }
+
+  // Initialize auto-backup status
+  function initAutoBackupStatus() {
+    const statusEl = document.getElementById('autoBackupStatus');
+    if (statusEl && autoBackupBtn) {
+      statusEl.textContent = storage.settings.autoBackup ? 'ON' : 'OFF';
+      autoBackupBtn.className = storage.settings.autoBackup ? 'accent' : 'ghost';
+    }
+  }
+
+  // Toggle auto-backup
+  function toggleAutoBackup() {
+    storage.settings.autoBackup = !storage.settings.autoBackup;
+    storage.saveSettings();
+    initAutoBackupStatus();
+    
+    const status = storage.settings.autoBackup ? 'enabled' : 'disabled';
+    showNotification(`🔄 Auto-backup ${status}`, 'success');
+    autoSave.markChanged();
+  }
+
+  // === Enhanced Filters & Data Processing ===
+  function getFilters() {
+    return {
+      mode: viewModeEl?.value || 'monthly',
+      year: filterYearEl?.value ? +filterYearEl.value : new Date().getFullYear(),
+      month: filterMonthEl?.value === '' ? null : +(filterMonthEl?.value || ''),
+      category: filterCategoryEl?.value || '',
+      q: (searchTextEl?.value || '').trim().toLowerCase()
+    };
+  }
+
+  function applyFilters(list) {
+    const f = getFilters();
+    return list.filter(e => {
+      const d = new Date(e.date);
+      const yearOk = d.getFullYear() === f.year || f.mode === 'annual';
+      const monthOk = f.month === null || d.getMonth() === f.month;
+      const catOk = !f.category || e.category === f.category;
+      const qOk = !f.q || (e.note || '').toLowerCase().includes(f.q) || 
+                         e.category.toLowerCase().includes(f.q);
+      return yearOk && monthOk && catOk && qOk;
+    });
+  }
+
+  function sumBy(list, fn) { 
+    return list.reduce((acc, x) => acc + (+fn(x) || 0), 0); 
+  }
+
+  function aggregate(list, mode) {
+    const map = new Map();
+    list.forEach(e => {
+      const d = new Date(e.date);
+      let key, label;
+      if (mode === 'annual') {
+        key = String(d.getFullYear());
+        label = key;
+      } else if (mode === 'quarterly') {
+        key = `${d.getFullYear()}-Q${getQuarter(d.getMonth())}`;
+        label = key;
+      } else {
+        const m = d.getMonth();
+        const y = d.getFullYear();
+        key = `${y}-${String(m+1).padStart(2,'0')}`;
+        label = `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]} ${y}`;
+      }
+      const prev = map.get(key) || { label, total: 0 };
+      prev.total += +e.amount;
+      map.set(key, prev);
+    });
+    
+    return [...map.values()].sort((a,b) => a.label.localeCompare(b.label));
+  }
+
+  function aggregateByCategory(list) {
+    const map = new Map();
+    list.forEach(e => {
+      const key = e.category || 'Uncategorized';
+      const prev = map.get(key) || 0;
+      map.set(key, prev + (+e.amount || 0));
+    });
+    return [...map.entries()]
+      .map(([label, total]) => ({ label, total }))
+      .sort((a,b) => b.total - a.total);
+  }
+
+  // === Enhanced Budget Management ===
+  function updateBudgetDisplay() {
+    if (!budgetSection) return;
+    
+    if (monthlyBudget <= 0) {
+      budgetSection.style.display = 'none';
+      return;
+    }
+
+    budgetSection.style.display = 'block';
+    
+    const now = new Date();
+    const currentMonth = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === now.getFullYear() && 
+             d.getMonth() === now.getMonth();
+    });
+    
+    const spent = sumBy(currentMonth, x => x.amount);
+    const remaining = Math.max(0, monthlyBudget - spent);
+    const progress = Math.min(100, (spent / monthlyBudget) * 100);
+    
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const currentDay = now.getDate();
+    const daysLeft = daysInMonth - currentDay;
+    
+    if (budgetTextEl) budgetTextEl.textContent = `${money(spent)} / ${money(monthlyBudget)}`;
+    if (progressFillEl) progressFillEl.style.width = `${progress}%`;
+    if (remainingBudgetEl) remainingBudgetEl.textContent = `${money(remaining)} remaining`;
+    if (budgetDaysEl) budgetDaysEl.textContent = `${daysLeft} days left`;
+    
+    // Color coding
+    if (progressFillEl) {
+      if (progress >= 90) {
+        progressFillEl.style.background = 'var(--danger)';
+      } else if (progress >= 75) {
+        progressFillEl.style.background = 'var(--warn)';
+      } else {
+        progressFillEl.style.background = 'linear-gradient(90deg, var(--success), var(--brand))';
+      }
+    }
+  }
+
+  // Quick expense function
+  function quickExpense(category, amount) {
+    if (categoryEl) categoryEl.value = category;
+    if (amountEl) amountEl.value = amount;
+    if (dateEl) dateEl.value = todayISO();
+    showNotification(`Quick expense: ${category} ₹${amount}`, 'success');
+  }
+
+  // === Enhanced Form Handling ===
+  function resetForm() {
+    if (!form) return;
+    
+    form.reset();
+    if (editIndex) editIndex.value = '';
+    if (dateEl) dateEl.value = todayISO();
+    if (submitText) submitText.textContent = '➕ Add Expense';
+    
+    showNotification('Form reset', 'success');
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    
+    if (!dateEl || !categoryEl || !amountEl) return;
+    
+    const date = dateEl.value;
+    const category = categoryEl.value;
+    const amount = parseFloat(amountEl.value);
+    const note = noteEl?.value || '';
+    const editIdx = editIndex?.value;
+
+    if (!date || !category || isNaN(amount) || amount <= 0) {
+      showNotification('Please fill in all required fields with valid values', 'danger');
+      return;
+    }
+
+    // Show loading state
+    if (submitText) submitText.style.display = 'none';
+    if (submitLoader) submitLoader.style.display = 'inline-block';
+
+    setTimeout(() => {
+      try {
+        const expense = {
+          id: editIdx ? expenses[editIdx].id : storage.generateId(),
+          date,
+          category,
+          amount,
+          note
+        };
+
+        if (editIdx !== '' && editIdx !== undefined) {
+          // Edit existing
+          expenses[editIdx] = expense;
+          showNotification('Expense updated successfully! 📝', 'success');
+        } else {
+          // Add new
+          expenses.push(expense);
+          showNotification('Expense added successfully! ✅', 'success');
+        }
+
+        saveExpenses(expenses);
+        resetForm();
+        renderTable();
+        renderCharts();
+        updateStats();
+        updateBudgetDisplay();
+        initYearOptions();
+
+      } catch (error) {
+        console.error('Error saving expense:', error);
+        showNotification('Error saving expense. Please try again.', 'danger');
+      } finally {
+        // Hide loading state
+        if (submitText) submitText.style.display = 'inline';
+        if (submitLoader) submitLoader.style.display = 'none';
+      }
+    }, 300); // Small delay for UX
+  }
+
+  // === Enhanced Table Rendering ===
+  function renderTable() {
+    if (!tableBody) return;
+    
+    const filtered = applyFilters(expenses);
+    const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    if (sorted.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 40px; color: var(--muted);">
+            <div>📊 No expenses found</div>
+            <div style="font-size: 12px; margin-top: 8px;">Add your first expense or adjust filters</div>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tableBody.innerHTML = sorted.map((e, originalIndex) => {
+      const actualIndex = expenses.findIndex(exp => exp.id === e.id);
+      const date = new Date(e.date).toLocaleDateString('en-IN');
+      
+      return `
+        <tr>
+          <td>${date}</td>
+          <td>
+            <span class="category-pill">${e.category}</span>
+          </td>
+          <td class="amount-display amount-positive">${money(e.amount)}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${e.note || '—'}</td>
+          <td>
+            <div class="action-buttons">
+              <button class="ghost" onclick="editExpense(${actualIndex})" title="Edit">✏️</button>
+              <button class="danger" onclick="deleteExpense(${actualIndex})" title="Delete">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Edit expense
+  function editExpense(index) {
+    if (!expenses[index]) return;
+    
+    const expense = expenses[index];
+    if (dateEl) dateEl.value = expense.date;
+    if (categoryEl) categoryEl.value = expense.category;
+    if (amountEl) amountEl.value = expense.amount;
+    if (noteEl) noteEl.value = expense.note || '';
+    if (editIndex) editIndex.value = index;
+    if (submitText) submitText.textContent = '💾 Update Expense';
+    
+    showNotification('Editing expense. Update and save changes.', 'success');
+    
+    // Scroll to form
+    form?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Delete expense with confirmation
+  function deleteExpense(index) {
+    if (!expenses[index]) return;
+    
+    const expense = expenses[index];
+    const confirmMsg = `Delete this expense?\n\n${expense.category}: ${money(expense.amount)}\n${expense.note || 'No description'}\nDate: ${new Date(expense.date).toLocaleDateString()}`;
+    
+    if (confirm(confirmMsg)) {
+      expenses.splice(index, 1);
+      saveExpenses(expenses);
+      renderTable();
+      renderCharts();
+      updateStats();
+      updateBudgetDisplay();
+      initYearOptions();
+      
+      showNotification('Expense deleted successfully', 'success');
+    }
+  }
+
+  // === Enhanced Statistics ===
+  function updateStats() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const currentQuarter = getQuarter(currentMonth);
+    
+    // Current month expenses
+    const monthExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+    
+    // Current quarter expenses
+    const quarterExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === currentYear && getQuarter(d.getMonth()) === currentQuarter;
+    });
+    
+    // Current year expenses
+    const yearExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getFullYear() === currentYear;
+    });
+    
+    const monthSum = sumBy(monthExpenses, x => x.amount);
+    const quarterSum = sumBy(quarterExpenses, x => x.amount);
+    const yearSum = sumBy(yearExpenses, x => x.amount);
+    
+    // Calculate daily average (this month)
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const currentDay = now.getDate();
+    const avgDaily = monthSum / currentDay;
+    
+    if (sumMonthEl) sumMonthEl.textContent = money(monthSum);
+    if (sumQuarterEl) sumQuarterEl.textContent = money(quarterSum);
+    if (sumYearEl) sumYearEl.textContent = money(yearSum);
+    if (avgDayEl) avgDayEl.textContent = money(avgDaily);
+  }
+
+  // === Chart Management ===
+  let barChart, pieChart, trendChart;
+
+  function renderCharts() {
+    renderBarChart();
+    renderPieChart();
+    renderTrendChart();
+  }
+
+  function renderBarChart() {
+    const canvas = document.getElementById('barChart');
+    if (!canvas) return;
+    
+    if (barChart) {
+      barChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    const filtered = applyFilters(expenses);
+    const aggregated = aggregate(filtered, getFilters().mode);
+    
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: aggregated.map(a => a.label),
+        datasets: [{
+          label: 'Expenses',
+          data: aggregated.map(a => a.total),
+          backgroundColor: 'rgba(34, 197, 94, 0.8)',
+          borderColor: 'rgba(34, 197, 94, 1)',
+          borderWidth: 1,
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => money(context.parsed.y)
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (value) => money(value)
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPieChart() {
+    const canvas = document.getElementById('pieChart');
+    if (!canvas) return;
+    
+    if (pieChart) {
+      pieChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    const filtered = applyFilters(expenses);
+    const byCategory = aggregateByCategory(filtered);
+    
+    if (byCategory.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = '14px Inter';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.fillText('No data to display', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+    
+    const colors = [
+      '#22c55e', '#8b5cf6', '#f59e0b', '#ef4444', '#3b82f6',
+      '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16'
+    ];
+    
+    pieChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: byCategory.map(c => c.label),
+        datasets: [{
+          data: byCategory.map(c => c.total),
+          backgroundColor: colors.slice(0, byCategory.length),
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const label = context.label;
+                const value = money(context.parsed);
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderTrendChart() {
+    const canvas = document.getElementById('trendChart');
+    if (!canvas) return;
+    
+    if (trendChart) {
+      trendChart.destroy();
+    }
+    
+    const ctx = canvas.getContext('2d');
+    const filtered = applyFilters(expenses);
+    
+    // Group by month for trend
+    const monthlyData = {};
+    filtered.forEach(e => {
+      const date = new Date(e.date);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      monthlyData[key] = (monthlyData[key] || 0) + e.amount;
+    });
+    
+    const sortedKeys = Object.keys(monthlyData).sort();
+    const labels = sortedKeys.map(key => {
+      const [year, month] = key.split('-');
+      return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1]} ${year}`;
+    });
+    
+    trendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Monthly Trend',
+          data: sortedKeys.map(key => monthlyData[key]),
+          borderColor: 'rgba(139, 92, 246, 1)',
+          backgroundColor: 'rgba(139, 92, 246, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#8b5cf6',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (context) => money(context.parsed.y)
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (value) => money(value)
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // === Enhanced Backup Functions ===
+  function createManualBackup() {
+    try {
+      const backup = storage.createBackup(expenses, monthlyBudget, storage.settings);
+      showNotification(`💾 Backup created successfully! (${backup.stats.totalExpenses} expenses)`, 'success', 4000);
+      return backup;
+    } catch (e) {
+      console.error('Manual backup failed:', e);
+      showNotification('❌ Backup creation failed', 'danger');
+      return null;
+    }
+  }
+
+  function exportBackupFile() {
+    try {
+      const data = {
+        expenses: expenses,
+        budget: monthlyBudget,
+        settings: storage.settings,
+        exportInfo: {
+          totalExpenses: expenses.length,
+          dateRange: storage.getDateRange(expenses),
+          categories: storage.getCategoryStats(expenses)
+        }
+      };
+      
+      storage.exportBackup(data);
+      showNotification('📤 Backup file exported successfully!', 'success');
+    } catch (e) {
+      console.error('Export backup failed:', e);
+      showNotification('❌ Export failed', 'danger');
+    }
+  }
+
+  async function restoreFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      showNotification('📥 Restoring backup...', 'success', 2000);
+      
+      const backupData = await storage.importBackup(file);
+      
+      if (confirm(`🔄 This will replace all current data with backup data.\n\nBackup contains:\n• ${backupData.expenses.length} expenses\n• Budget: ${money(backupData.budget || 0)}\n\nProceed with restore?`)) {
+        
+        // Create backup of current data first
+        createManualBackup();
+        
+        // Restore data
+        expenses = backupData.expenses || [];
+        monthlyBudget = backupData.budget || 0;
+        
+        // Restore settings if available
+        if (backupData.settings) {
+          storage.settings = { ...storage.settings, ...backupData.settings };
+          storage.saveSettings();
+        }
+        
+        // Save restored data
+        saveExpenses(expenses);
+        saveBudget(monthlyBudget);
+        
+        // Update UI
+        renderTable();
+        renderCharts();
+        updateStats();
+        updateBudgetDisplay();
+        initYearOptions();
+        initAutoBackupStatus();
+        
+        showNotification(`✅ Backup restored! Loaded ${expenses.length} expenses`, 'success', 5000);
+      }
+    } catch (e) {
+      console.error('Restore failed:', e);
+      showNotification(`❌ Restore failed: ${e.message}`, 'danger', 6000);
+    }
+    
+    // Clear file input
+    event.target.value = '';
+  }
+
+  // === Export Functions ===
+  function toExportable(list) {
+    return list.map(e => ({
+      Date: e.date,
+      Category: e.category,
+      Amount: e.amount,
+      Description: e.note || '',
+      'Amount (Formatted)': money(e.amount)
+    }));
+  }
+
+  function exportToExcel(rows, filename) {
+    try {
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Expenses');
+      
+      // Add some styling
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let i = range.s.r; i <= range.e.r; i++) {
+        for (let j = range.s.c; j <= range.e.c; j++) {
+          const cell = ws[XLSX.utils.encode_cell({ r: i, c: j })];
+          if (cell && i === 0) {
+            // Header row styling
+            cell.s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: "22c55e" } }
+            };
+          }
+        }
+      }
+      
+      XLSX.writeFile(wb, filename);
+      console.log(`📊 Excel export completed: ${filename}`);
+    } catch (error) {
+      console.error('Excel export failed:', error);
+      showNotification('❌ Failed to export Excel file', 'danger');
+    }
+  }
+
+  // === Event Listeners ===
+  
+  // Form submission
+  if (form) {
+    form.addEventListener('submit', handleSubmit);
+  }
+
+  // Reset form button
+  if (resetFormBtn) {
+    resetFormBtn.addEventListener('click', resetForm);
+  }
+
+  // Theme toggle
+  if (themeToggle) {
+    themeToggle.addEventListener('click', toggleTheme);
+  }
+
+  // Budget Management
+  if (setBudgetBtn && budgetModal && saveBudgetBtn && cancelBudgetBtn && budgetAmountEl) {
+    setBudgetBtn.addEventListener('click', () => {
+      budgetAmountEl.value = monthlyBudget > 0 ? monthlyBudget : '';
+      budgetModal.style.display = 'flex';
+    });
+
+    saveBudgetBtn.addEventListener('click', () => {
+      const amount = parseFloat(budgetAmountEl.value);
+      if (isNaN(amount) || amount <= 0) {
+        showNotification('Please enter a valid budget amount', 'danger');
+        return;
+      }
+      
+      monthlyBudget = amount;
+      saveBudget(amount);
+      budgetModal.style.display = 'none';
+      updateBudgetDisplay();
+      showNotification(`💰 Monthly budget set to ${money(amount)}`, 'success');
+    });
+
+    cancelBudgetBtn.addEventListener('click', () => {
+      budgetModal.style.display = 'none';
+    });
+
+    // Close modal on outside click
+    budgetModal.addEventListener('click', (e) => {
+      if (e.target === budgetModal) {
+        budgetModal.style.display = 'none';
+      }
+    });
+  }
+
+  // Backup & Restore Events
+  if (createBackupBtn) {
+    createBackupBtn.addEventListener('click', createManualBackup);
+  }
+  
+  if (backupDataBtn) {
+    backupDataBtn.addEventListener('click', exportBackupFile);
+  }
+  
+  if (loadBackupBtn && fileRestoreEl) {
+    loadBackupBtn.addEventListener('click', () => fileRestoreEl.click());
+  }
+  
+  if (restoreDataBtn && fileRestoreEl) {
+    restoreDataBtn.addEventListener('click', () => fileRestoreEl.click());
+  }
+  
+  if (fileRestoreEl) {
+    fileRestoreEl.addEventListener('change', restoreFromFile);
+  }
+  
+  if (autoBackupBtn) {
+    autoBackupBtn.addEventListener('click', toggleAutoBackup);
+  }
+
+  // Filter change listeners
+  const filterElements = [viewModeEl, filterMonthEl, filterYearEl, filterCategoryEl, searchTextEl];
+  filterElements.forEach(el => {
+    if (el) {
+      el.addEventListener('input', () => {
+        renderTable();
+        renderCharts();
+        // Save current filter state
+        storage.saveFilters(getFilters());
+      });
+      el.addEventListener('change', () => {
+        renderTable();
+        renderCharts();
+        storage.saveFilters(getFilters());
+      });
+    }
+  });
+
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', () => {
+      if (viewModeEl) viewModeEl.value = 'monthly';
+      if (filterMonthEl) filterMonthEl.value = '';
+      if (filterYearEl) filterYearEl.value = String(new Date().getFullYear());
+      if (filterCategoryEl) filterCategoryEl.value = '';
+      if (searchTextEl) searchTextEl.value = '';
+      
+      renderTable();
+      renderCharts();
+      storage.saveFilters(getFilters());
+      showNotification('🧹 Filters cleared', 'success');
+    });
+  }
+
+  // Export buttons
+  if (exportAllBtn) {
+    exportAllBtn.addEventListener('click', () => {
+      if (expenses.length === 0) {
+        showNotification('📊 No data to export', 'warn');
+        return;
+      }
+      exportToExcel(toExportable(expenses), `Expenses_All_${todayISO()}.xlsx`);
+      showNotification(`📤 All expenses exported! (${expenses.length} records)`, 'success');
+    });
+  }
+
+  if (exportFilteredBtn) {
+    exportFilteredBtn.addEventListener('click', () => {
+      const filtered = applyFilters(expenses);
+      if (filtered.length === 0) {
+        showNotification('📊 No filtered data to export', 'warn');
+        return;
+      }
+      exportToExcel(toExportable(filtered), `Expenses_Filtered_${todayISO()}.xlsx`);
+      showNotification(`📤 Filtered expenses exported! (${filtered.length} records)`, 'success');
+    });
+  }
+
+  // Reset data with enhanced confirmation
+  if (resetDataBtn) {
+    resetDataBtn.addEventListener('click', () => {
+      if (confirm('🚨 This will permanently delete ALL your expense data. This action cannot be undone. Are you sure?')) {
+        if (confirm('⚠️ Last chance! This will erase everything. Proceed?')) {
+          // Create final backup before reset
+          createManualBackup();
+          
+          expenses = [];
+          monthlyBudget = 0;
+          
+          // Clear storage
+          storage.clearAllData();
+          
+          // Update UI
+          renderTable();
+          renderCharts();
+          updateStats();
+          initYearOptions();
+          updateBudgetDisplay();
+          storage.updateBackupInfo();
+          
+          showNotification('🗑️ All data has been reset', 'danger', 5000);
+        }
+      }
+    });
+  }
+
+  // === Bootstrap Application ===
+  function boot() {
+    try {
+      console.log('🚀 Starting Expense Tracker v4.0...');
+      
+      // Initialize data first
+      const dataInitialized = initializeData();
+      
+      // Initialize UI components
+      initTheme();
+      initMonthOptions();
+      initYearOptions();
+      initAutoBackupStatus();
+      
+      // Set default date
+      if (dateEl) dateEl.value = todayISO();
+      
+      // Render UI
+      renderTable();
+      renderCharts();
+      updateStats();
+      updateBudgetDisplay();
+      storage.updateBackupInfo();
+      
+      // Show welcome messages
+      if (expenses.length === 0) {
+        showNotification('🎉 Welcome! Your data is automatically saved. Add your first expense to get started', 'success', 6000);
+      } else {
+        // Show data loaded message
+        const lastSave = storage.getLastSaveTime();
+        if (lastSave) {
+          const timeAgo = Math.floor((Date.now() - lastSave.getTime()) / 60000);
+          const timeText = timeAgo < 1 ? 'just now' : timeAgo < 60 ? `${timeAgo}m ago` : `${Math.floor(timeAgo/60)}h ago`;
+          showNotification(`👋 Welcome back! Loaded ${expenses.length} expenses (saved ${timeText})`, 'success', 5000);
+        } else {
+          showNotification(`👋 Welcome back! Loaded ${expenses.length} expenses`, 'success', 4000);
+        }
+      }
+      
+      // Check for storage issues
+      if (!storage.storageAvailable) {
+        showNotification('⚠️ Browser storage unavailable. Data will not persist between sessions.', 'warn', 10000, true);
+      } else {
+        // Show storage stats in console
+        const stats = storage.getStorageStats();
+        if (stats) {
+          console.log('💾 Storage usage:', {
+            total: stats.total.kb + ' KB',
+            expenses: stats.expenses.kb + ' KB',
+            backups: stats.backups.kb + ' KB'
+          });
+        }
+      }
+      
+      console.log('✅ Application initialized successfully');
+      
+    } catch (error) {
+      console.error('❌ Initialization error:', error);
+      showNotification('⚠️ App initialization completed with warnings. Some features may not work properly.', 'warn', 8000);
+    }
+  }
+
+  // Enhanced keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    // Only trigger shortcuts when not typing in inputs
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      return;
+    }
+    
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          dateEl?.focus();
+          showNotification('⌨️ New expense (Ctrl+N)', 'success', 2000);
+          break;
+        case 'e':
+          e.preventDefault();
+          exportAllBtn?.click();
+          break;
+        case 'd':
+          e.preventDefault();
+          toggleTheme();
+          break;
+        case 's':
+          e.preventDefault();
+          createManualBackup();
+          showNotification('💾 Manual backup created (Ctrl+S)', 'success');
+          break;
+        case 'f':
+          e.preventDefault();
+          searchTextEl?.focus();
+          showNotification('🔍 Search focus (Ctrl+F)', 'success', 2000);
+          break;
+        case 'r':
+          e.preventDefault();
+          resetForm();
+          break;
+      }
+    }
+    
+    // ESC key to close modals
+    if (e.key === 'Escape') {
+      if (budgetModal && budgetModal.style.display === 'flex') {
+        budgetModal.style.display = 'none';
+      }
+    }
+  });
+
+  // Handle page visibility for better performance
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Page is being hidden, pause charts if any intensive operations
+      console.log('📱 App went to background');
+    } else {
+      // Page is visible again, refresh if needed
+      console.log('📱 App came to foreground');
+      autoSave.updateLastSaveDisplay();
+    }
+  });
+
+  // Make functions globally accessible for onclick handlers
+  window.quickExpense = quickExpense;
+  window.editExpense = editExpense;
+  window.deleteExpense = deleteExpense;
+
+  // Initialize app when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  // Export for debugging purposes
+  window.ExpenseTracker = {
+    storage,
+    autoSave,
+    expenses,
+    monthlyBudget,
+    createBackup: createManualBackup,
+    exportData: exportBackupFile,
+    getStats: () => storage.getStorageStats(),
+    version: '4.0'
+  };
+
+  console.log('💰 Expense Tracker v4.0 loaded successfully!');
+  console.log('🔧 Debug tools available at window.ExpenseTracker');
+  
+</script>
+
+</body>
+</html>
